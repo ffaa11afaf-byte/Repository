@@ -3,133 +3,91 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>مستخرج Streamtape</title>
+  <title>استخراج مباشر بـ IP المستخدم</title>
   <style>
     * { box-sizing: border-box; }
-    body { 
-      font-family: system-ui, -apple-system, sans-serif; 
-      background: #0f172a; 
-      color: #f8fafc; 
-      display: flex; 
-      justify-content: center; 
-      align-items: center;
-      min-height: 100vh;
-      margin: 0;
-      padding: 20px; 
-    }
-    .box { 
-      background: #1e293b; 
-      padding: 25px; 
-      border-radius: 12px; 
-      max-width: 500px; 
-      width: 100%; 
-      border: 1px solid #334155; 
-      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-    }
+    body { font-family: system-ui, sans-serif; background: #0f172a; color: #f8fafc; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
+    .box { background: #1e293b; padding: 25px; border-radius: 12px; max-width: 500px; width: 100%; border: 1px solid #334155; }
     h3 { margin-top: 0; text-align: center; color: #38bdf8; }
-    label { font-size: 0.9rem; color: #cbd5e1; display: block; margin-bottom: 8px; }
-    input { 
-      width: 100%; 
-      padding: 12px; 
-      margin-bottom: 15px; 
-      background: #0f172a; 
-      border: 1px solid #334155; 
-      border-radius: 8px; 
-      color: #fff; 
-      font-size: 1rem;
-      outline: none;
-    }
-    input:focus { border-color: #38bdf8; }
-    button { 
-      width: 100%; 
-      padding: 12px; 
-      background: #2563eb; 
-      border: none; 
-      color: white; 
-      border-radius: 8px; 
-      font-size: 1rem;
-      font-weight: bold; 
-      cursor: pointer; 
-    }
-    button:hover { background: #1d4ed8; }
-    .card { 
-      background: #0f172a; 
-      padding: 15px; 
-      border-radius: 8px; 
-      margin-top: 20px; 
-      border: 1px solid #334155; 
-      word-break: break-all; 
-    }
+    input { width: 100%; padding: 12px; margin-bottom: 15px; background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: #fff; outline: none; }
+    button { width: 100%; padding: 12px; background: #2563eb; border: none; color: white; border-radius: 8px; font-weight: bold; cursor: pointer; }
+    .card { background: #0f172a; padding: 15px; border-radius: 8px; margin-top: 20px; border: 1px solid #334155; word-break: break-all; }
     video { width: 100%; margin-top: 15px; border-radius: 8px; background: #000; }
     .status { color: #f59e0b; margin-top: 15px; text-align: center; font-weight: bold; }
-    .error-tag {
-      background: #ef444422;
-      color: #f87171;
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-family: monospace;
-      display: inline-block;
-      margin-bottom: 8px;
-    }
   </style>
 </head>
 <body>
 
   <div class="box">
-    <h3>جلب آخر حلقة وتفكيك الرابط</h3>
-    <label for="folderName">اسم المجلد داخل Streamtape:</label>
-    <input type="text" id="folderName" placeholder="اكتب اسم المجلد هنا...">
-    <button onclick="fetchEpisode()">بحث واستخراج</button>
+    <h3>جلب واستخراج بـ IP الجهاز المباشر</h3>
+    <input type="text" id="folderName" placeholder="اسم المجلد (مثال: sub)">
+    <button onclick="fetchEpisodeDirectly()">بحث واستخراج</button>
 
-    <div id="status" class="status" style="display:none;">جاري الاتصال والبحث...</div>
+    <div id="status" class="status" style="display:none;">جاري جلب الملف وتفكيك التشفير من جهازك...</div>
     <div id="result"></div>
   </div>
 
   <script>
-    async function fetchEpisode() {
-      const folderInput = document.getElementById('folderName');
+    async function fetchEpisodeDirectly() {
+      const folderName = document.getElementById('folderName').value.trim();
       const statusDiv = document.getElementById('status');
       const resultDiv = document.getElementById('result');
 
-      const folderName = folderInput.value.trim();
-
-      if (!folderName) {
-        alert('يرجى كتابة اسم المجلد أولاً');
-        return;
-      }
+      if (!folderName) return alert('يرجى كتابة اسم المجلد');
 
       statusDiv.style.display = 'block';
       resultDiv.innerHTML = '';
 
       try {
-        const response = await fetch('/api/get-latest?folderName=' + encodeURIComponent(folderName));
-        const data = await response.json();
-        
-        statusDiv.style.display = 'none';
+        // الخطوة 1: طلب اسم الملف ورابطه الرسمي من Vercel
+        const res = await fetch('/api/get-latest?folderName=' + encodeURIComponent(folderName));
+        const data = await res.json();
 
-        if (data.success) {
-          resultDiv.innerHTML = 
-            '<div class="card">' +
-              '<p><strong>الملف:</strong> ' + data.fileName + '</p>' +
-              '<p><strong>الرابط المباشر:</strong></p>' +
-              '<a href="' + data.directLink + '" target="_blank" style="color:#38bdf8">' + data.directLink + '</a>' +
-              '<video controls autoplay><source src="' + data.directLink + '" type="video/mp4"></video>' +
-            '</div>';
-        } else {
-          resultDiv.innerHTML = 
-            '<div class="card" style="border-color: #ef4444;">' +
-              '<div class="error-tag">' + (data.errorCode || 'ERR_UNKNOWN') + '</div>' +
-              '<p style="color: #f87171; margin: 5px 0;"><strong>الرسالة:</strong> ' + data.error + '</p>' +
-              (data.details ? '<p style="color: #94a3b8; font-size: 0.85rem;"><strong>التفاصيل:</strong> ' + data.details + '</p>' : '') +
-            '</div>';
+        if (!data.success) {
+          statusDiv.style.display = 'none';
+          resultDiv.innerHTML = `<div class="card" style="border-color:#ef4444">${data.error}</div>`;
+          return;
         }
+
+        // الخطوة 2: جلب كود الـ HTML مباشرة من متصفح المستخدم باستخدام AllOrigins لتخطي CORS
+        const targetUrl = data.pageUrl;
+        const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(targetUrl);
+        
+        const htmlRes = await fetch(proxyUrl);
+        const htmlData = await htmlRes.json();
+        const html = htmlData.contents;
+
+        // الخطوة 3: تفكيك الـ robotlink داخل المتصفح
+        const regex = /document\.getElementById\('robotlink'\)\.innerHTML = '(.*?)'\+ \('(.*?)'\)/;
+        const match = html.match(regex);
+
+        if (!match) {
+          statusDiv.style.display = 'none';
+          resultDiv.innerHTML = `<div class="card" style="border-color:#ef4444">تم جلب الملف (${data.fileName}) ولكن تعذر تفكيك كود الصفحة.</div>`;
+          return;
+        }
+
+        const part1 = match[1];
+        const part2 = match[2].replace(/['\+ ]/g, '');
+        const getVideoUrl = 'https:' + part1 + part2;
+
+        // الخطوة 4: الحصول على رابط MP4 المباشر النهائي
+        const directRes = await fetch(getVideoUrl);
+        const finalDirectLink = directRes.url;
+
+        statusDiv.style.display = 'none';
+        resultDiv.innerHTML = `
+          <div class="card">
+            <p><strong>اسم أحدث حلقة:</strong> ${data.fileName}</p>
+            <p><strong>الرابط المباشر المستخرج:</strong></p>
+            <a href="${finalDirectLink}" target="_blank" style="color:#38bdf8">${finalDirectLink}</a>
+            <video controls autoplay><source src="${finalDirectLink}" type="video/mp4"></video>
+          </div>
+        `;
+
       } catch (err) {
         statusDiv.style.display = 'none';
-        resultDiv.innerHTML = 
-          '<div class="card" style="border-color: #ef4444;">' +
-            '<div class="error-tag">ERR_JS_CLIENT</div>' +
-            '<p style="color: #f87171;">فشل الاتصال بالخادم الداخلي أو يوجد خلل في الشبكة.</p>' +
-          '</div>';
+        resultDiv.innerHTML = `<div class="card" style="border-color:#ef4444">حدث خطأ أثناء جلب تفكيك الرابط مباشرة من المتصفح: ${err.message}</div>`;
       }
     }
   </script>
