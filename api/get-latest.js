@@ -1,67 +1,87 @@
 const axios = require('axios');
 
-const API_LOGIN = '39bfbc119ea5941aa286';
-const API_KEY = '6PR8RbXKrMh9w6b';
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const { folderName } = req.query;
+  const { url } = req.query;
 
-  if (!folderName) {
-    return res.status(400).json({ errorCode: 'ERR_00_EMPTY', error: 'يرجى كتابة اسم المجلد' });
+  if (!url) {
+    return res.status(400).json({ errorCode: 'ERR_00_EMPTY_URL', error: 'يرجى إدخال رابط الحلقة' });
   }
 
   try {
-    // 1. جلب قائمة المجلدات
-    const listRes = await axios.get(`https://api.streamtape.com/file/listfolder?login=${API_LOGIN}&key=${API_KEY}`);
-    
-    if (listRes.data.status !== 200) {
-      return res.status(500).json({ errorCode: 'ERR_01_AUTH', error: 'فشل الاتصال بـ API ستريم تيب', details: listRes.data.msg });
+    // 1. تنظيف وتجهيز الرابط
+    let cleanUrl = url.trim();
+    // تحويل روابط المعاينة /e/ إلى روابط العرض الأساسية /v/ لضمان وجود كود التفكيك
+    if (cleanUrl.includes('/e/')) {
+      cleanUrl = cleanUrl.replace('/e/', '/v/');
     }
 
-    const folders = listRes.data.result.folders || [];
-    const targetFolder = folders.find(f => f.name.trim().toLowerCase() === folderName.trim().toLowerCase());
-    let targetFolderId = targetFolder ? targetFolder.id : null;
-
-    // 2. جلب الملفات
-    const filesRes = await axios.get(`https://api.streamtape.com/file/listfolder?login=${API_LOGIN}&key=${API_KEY}${targetFolderId ? `&folder=${targetFolderId}` : ''}`);
-    const files = filesRes.data.result.files || [];
-
-    if (files.length === 0) {
-      return res.status(404).json({ errorCode: 'ERR_03_EMPTY', error: `لم يتم العثور على ملفات داخل المجلد: (${folderName})` });
-    }
-
-    // فرز أحدث ملف
-    files.sort((a, b) => b.ctime - a.ctime);
-    const latestFile = files[0];
-
-    // 3. طلب تذكرة التحميل/العرض الرسمية عبر الـ API بدون سحب HTML
-    let ticketRes;
+    // 2. سحب كود الـ HTML للصفحة
+    let htmlRes;
     try {
-      ticketRes = await axios.get(`https://api.streamtape.com/file/d?file=${latestFile.id}`);
+      htmlRes = await axios.get(cleanUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      });
     } catch (e) {
-      return res.status(500).json({ errorCode: 'ERR_04_TICKET_HTTP_FAIL', error: 'فشل طلب تذكرة الفيديو من الـ API', details: e.message });
+      return res.status(500).json({ 
+        errorCode: 'ERR_01_FETCH_HTML_FAIL', 
+        error: 'فشل جلب صفحة الحلقة (تأكد من صحة الرابط أو قد يكون IP السيرفر محظوراً)', 
+        details: e.message 
+      });
     }
 
-    if (ticketRes.data.status !== 200) {
-      return res.status(500).json({ errorCode: 'ERR_04_TICKET_API_FAIL', error: 'الـ API رفض طلب التذكرة للملف', details: ticketRes.data.msg });
+    // 3. تفكيك كود robotlink عبر Regex
+    const html = htmlRes.data;
+    const regex = /document\.getElementById\('robotlink'\)\.innerHTML = '(.*?)'\+ \('(.*?)'\)/;
+    const match = html.match(regex);
+
+    if (!match) {
+      return res.status(404).json({ 
+        errorCode: 'ERR_02_REGEX_FAIL', 
+        error: 'تعذر العثور على كود التشفير داخل الصفحة (قد تكون الحلقة محذوفة أو تم إظهار كابتشا)' 
+      });
     }
 
-    // الرابط المباشر الرسمي الممنوح من الخدمة
-    const directUrl = ticketRes.data.result.url;
+    const part1 = match[1];
+    const part2 = match[2].replace(/['\+ ]/g, '');
+    const getVideoUrl = `https:${part1}${part2}`;
+
+    // 4. التقاط رابط التوجيه النهائي (302 Redirect)
+    let redirectRes;
+    try {
+      redirectRes = await axios.get(getVideoUrl, {
+        maxRedirects: 0,
+        validateStatus: (status) => status >= 200 && status < 400,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      });
+    } catch (e) {
+      return res.status(500).json({ 
+        errorCode: 'ERR_03_REDIRECT_FAIL', 
+        error: 'فشل التقاط رابط إعادة التوجيه النهائي', 
+        details: e.message 
+      });
+    }
+
+    const directLink = redirectRes.headers.location;
+
+    if (!directLink) {
+      return res.status(500).json({ errorCode: 'ERR_04_NO_DIRECT_LINK', error: 'لم يتم العثور على رابط التوجيه المباشر' });
+    }
 
     return res.status(200).json({
       success: true,
-      fileName: latestFile.name,
-      fileId: latestFile.id,
-      directLink: directUrl
+      directLink: directLink
     });
 
-  } catch (error) {
-    return res.status(500).json({ errorCode: 'ERR_99_CRASH', error: 'خطأ عام في الخادم', details: error.message });
+  } catch (globalError) {
+    return res.status(500).json({ errorCode: 'ERR_99_CRASH', error: 'خطأ عام في الخادم', details: globalError.message });
   }
 }
