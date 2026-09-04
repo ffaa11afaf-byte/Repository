@@ -3,14 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>مستخرج Streamtape الرسمي</title>
+  <title>مستخرج روابط Streamtape المباشر</title>
   <style>
     * { box-sizing: border-box; }
-    body { font-family: system-ui, sans-serif; background: #0f172a; color: #f8fafc; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
-    .box { background: #1e293b; padding: 25px; border-radius: 12px; max-width: 500px; width: 100%; border: 1px solid #334155; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #f8fafc; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
+    .box { background: #1e293b; padding: 25px; border-radius: 12px; max-width: 500px; width: 100%; border: 1px solid #334155; box-shadow: 0 10px 25px rgba(0,0,0,0.4); }
     h3 { margin-top: 0; text-align: center; color: #38bdf8; }
+    label { font-size: 0.9rem; color: #cbd5e1; display: block; margin-bottom: 8px; }
     input { width: 100%; padding: 12px; margin-bottom: 15px; background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: #fff; outline: none; }
-    button { width: 100%; padding: 12px; background: #2563eb; border: none; color: white; border-radius: 8px; font-weight: bold; cursor: pointer; }
+    input:focus { border-color: #38bdf8; }
+    button { width: 100%; padding: 12px; background: #2563eb; border: none; color: white; border-radius: 8px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
     button:hover { background: #1d4ed8; }
     .card { background: #0f172a; padding: 15px; border-radius: 8px; margin-top: 20px; border: 1px solid #334155; word-break: break-all; }
     video { width: 100%; margin-top: 15px; border-radius: 8px; background: #000; }
@@ -21,27 +23,31 @@
 <body>
 
   <div class="box">
-    <h3>جلب واستخراج أحدث حلقة</h3>
-    <input type="text" id="folderName" placeholder="اكتب اسم المجلد (مثال: sub)">
-    <button onclick="fetchLatest()">بحث واستخراج</button>
+    <h3>تفكيك واستخراج رابط الحلقة</h3>
+    <label for="videoUrl">رابط الحلقة (من stape.me أو streamtape):</label>
+    <input type="text" id="videoUrl" placeholder="ضع رابط الحلقة هنا...">
+    <button onclick="extractDirectLink()">تفكيك واستخراج</button>
 
-    <div id="status" class="status" style="display:none;">جاري جلب الملف واستخراج الرابط المباشر...</div>
+    <div id="status" class="status" style="display:none;">جاري جلب الصفحة وتفكيك التشفير...</div>
     <div id="result"></div>
   </div>
 
   <script>
-    async function fetchLatest() {
-      const folderName = document.getElementById('folderName').value.trim();
+    async function extractDirectLink() {
+      const urlInput = document.getElementById('videoUrl').value.trim();
       const statusDiv = document.getElementById('status');
       const resultDiv = document.getElementById('result');
 
-      if (!folderName) return alert('يرجى كتابة اسم المجلد');
+      if (!urlInput) {
+        alert('يرجى وضع رابط الحلقة أولاً');
+        return;
+      }
 
       statusDiv.style.display = 'block';
       resultDiv.innerHTML = '';
 
       try {
-        const res = await fetch('/api/get-latest?folderName=' + encodeURIComponent(folderName));
+        const res = await fetch('/api/get-latest?url=' + encodeURIComponent(urlInput));
         const data = await res.json();
         
         statusDiv.style.display = 'none';
@@ -49,8 +55,7 @@
         if (data.success) {
           resultDiv.innerHTML = `
             <div class="card">
-              <p><strong>اسم أحدث ملف:</strong> ${data.fileName}</p>
-              <p><strong>الرابط المباشر الرسمي:</strong></p>
+              <p><strong>الرابط المباشر المستخرج (.mp4):</strong></p>
               <a href="${data.directLink}" target="_blank" style="color:#38bdf8">${data.directLink}</a>
               <video controls autoplay><source src="${data.directLink}" type="video/mp4"></video>
             </div>
