@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>فاحص مجلدات Streamtape</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0b0f19; color: #e2e8f0; display: flex; justify-content: center; padding: 40px 20px; }
+    .box { background: #151c2c; padding: 30px; border-radius: 12px; max-width: 600px; width: 100%; border: 1px solid #1e293b; }
+    input { width: 100%; padding: 12px; margin: 10px 0 20px; background: #0b0f19; border: 1px solid #334155; border-radius: 8px; color: #fff; box-sizing: border-box; }
+    button { width: 100%; padding: 12px; background: #2563eb; border: none; color: white; border-radius: 8px; font-weight: bold; cursor: pointer; }
+    button:hover { background: #1d4ed8; }
+    .card { background: #0b0f19; padding: 15px; border-radius: 8px; margin-top: 20px; border: 1px solid #334155; word-break: break-all; }
+    video { width: 100%; margin-top: 15px; border-radius: 8px; }
+    .status { color: #f59e0b; margin-top: 10px; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h3>جلب آخر حلقة وتفكيك رابطها</h3>
+    <label>اسم المجلد داخل Streamtape:</label>
+    <input type="text" id="folderName" placeholder="مثال: Solo Leveling S1">
+    <button onclick="fetchLatestEpisode()">بحث واستخراج</button>
+
+    <div id="status" class="status" style="display:none;">جاري الاستعلام واستخراج التشفير...</div>
+    <div id="result"></div>
+  </div>
+
+  <script>
+    async function fetchLatestEpisode() {
+      const folderName = document.getElementById('folderName').value.trim();
+      const statusDiv = document.getElementById('status');
+      const resultDiv = document.getElementById('result');
+
+      if(!folderName) return alert('اكتب اسم المجلد أولاً');
+
+      statusDiv.style.display = 'block';
+      resultDiv.innerHTML = '';
+
+      try {
+        const res = await fetch(`/api/get-latest?folderName=${encodeURIComponent(folderName)}`);
+        const data = await res.json();
+        statusDiv.style.display = 'none';
+
+        if(data.success) {
+          resultDiv.innerHTML = `
+            <div class="card">
+              <p><strong>اسم أحدث ملف:</strong> ${data.fileName}</p>
+              <p><strong>الرابط المباشر:</strong></p>
+              <a href="${data.directLink}" target="_blank" style="color:#38bdf8">${data.directLink}</a>
+              <video controls autoplay>
+                <source src="${data.directLink}" type="video/mp4">
+              </video>
+            </div>
+          `;
+        } else {
+          resultDiv.innerHTML = `<div class="card" style="color:#ef4444">خطأ: ${data.error}</div>`;
+        }
+      } catch(e) {
+        statusDiv.style.display = 'none';
+        resultDiv.innerHTML = `<div class="card" style="color:#ef4444">فشل الاتصال الخارجي</div>`;
+      }
+    }
+  </script>
+</body>
+</html>
