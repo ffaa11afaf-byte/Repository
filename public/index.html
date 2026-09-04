@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>مستخرج Streamtape المباشر</title>
+  <title>مستخرج Streamtape الرسمي</title>
   <style>
     * { box-sizing: border-box; }
     body { font-family: system-ui, sans-serif; background: #0f172a; color: #f8fafc; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
@@ -25,7 +25,7 @@
     <input type="text" id="folderName" placeholder="اكتب اسم المجلد (مثال: sub)">
     <button onclick="fetchLatest()">بحث واستخراج</button>
 
-    <div id="status" class="status" style="display:none;">جاري جلب أحدث ملف وتفكيك الرابط...</div>
+    <div id="status" class="status" style="display:none;">جاري جلب الملف واستخراج الرابط المباشر...</div>
     <div id="result"></div>
   </div>
 
@@ -50,7 +50,7 @@
           resultDiv.innerHTML = `
             <div class="card">
               <p><strong>اسم أحدث ملف:</strong> ${data.fileName}</p>
-              <p><strong>الرابط المباشر:</strong></p>
+              <p><strong>الرابط المباشر الرسمي:</strong></p>
               <a href="${data.directLink}" target="_blank" style="color:#38bdf8">${data.directLink}</a>
               <video controls autoplay><source src="${data.directLink}" type="video/mp4"></video>
             </div>
